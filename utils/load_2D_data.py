@@ -57,7 +57,8 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
             # Replace SimpleITK to PILLOW for 2D image support on Raspberry Pi
             mask = np.array(Image.open(join(mask_path, img_name))) # (x,y,4)
             
-            mask = convert_mask_data(mask)
+            mask = convert_mask_data(mask, save_visualization=True,   
+                     filename=img_name)
             
 
         if not no_masks:
@@ -375,8 +376,9 @@ def convert_data_to_numpy_patches(root_path, img_name, no_masks=False, overwrite
         return [], [], [], None
 
 
-def convert_data_to_numpy_patches_multisize(root_path, img_name, no_masks=False,   
-                                          overwrite=False, patch_sizes=[128, 256, 512]):  
+def convert_data_to_numpy_patches_multisize(root_path, img_name, no_masks=False,     
+                                          overwrite=False, patch_sizes=[128, 256, 512],  
+                                          save_visualization=False, filename=None): 
     fname = img_name[:-4]  
     numpy_path = join(root_path, 'np_files_patches_multisize')  
     img_path = join(root_path, 'imgs')  
@@ -442,8 +444,11 @@ def convert_data_to_numpy_patches_multisize(root_path, img_name, no_masks=False,
                         else:  
                             mask_resized = mask_patch  
                           
-                        processed_mask_patch = convert_mask_data(mask_resized)  
-                        all_mask_patches.append(processed_mask_patch)  
+                        #processed_mask_patch = convert_mask_data(mask_resized)
+                        processed_mask_patch = convert_mask_data(mask_resized, save_visualization=save_visualization,     
+                                       filename=f"{filename}_patch_{len(all_mask_patches)}",     
+                                       patch_info=(len(all_mask_patches), len(mask_patch_list)))
+                        all_mask_patches.append(processed_mask_patch)
           
         # Guardar todos los patches y metadatos  
         if not no_masks:  
@@ -540,7 +545,8 @@ def generate_train_batches_patches_multisize(root_path, train_list, net_input_sh
                                            batchSize=1, numSlices=1, subSampAmt=-1, stride=1,     
                                            downSampAmt=1, shuff=1, aug_data=1,     
                                            patch_sizes=[128, 256, 512],     
-                                           size_distribution=[0.3, 0.3, 0.4]):    
+                                           size_distribution=[0.3, 0.3, 0.4],  
+                                           save_visualization=False, filename=None):    
     """    
     Generador que alterna entre patches de diferentes tamaños    
     size_distribution: proporción de cada tamaño [128x128, 256x256, 512x512]    
@@ -568,8 +574,8 @@ def generate_train_batches_patches_multisize(root_path, train_list, net_input_sh
             except:    
                 logging.info('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-4]))    
                 # SOLUCIÓN 1: Usar parámetros consistentes de la función  
-                patches, mask_patches, positions, patch_sizes_data, original_shape = convert_data_to_numpy_patches_multisize(    
-                    root_path, scan_name, patch_sizes=patch_sizes)  # Usar parámetro de función  
+                patches, mask_patches, positions, patch_sizes_data, original_shape = convert_data_to_numpy_patches_multisize(      
+                    root_path, scan_name, patch_sizes=patch_sizes, save_visualization=save_visualization, filename=scan_name) 
                 if len(patches) == 0:    
                     continue    
                 else:    
@@ -737,14 +743,15 @@ def generate_test_batches_patches(root_path, test_list, net_input_shape, batchSi
         yield (img_batch[:count,:,:,:])
 
 
-def get_train_generator(args, root_path, train_list, net_input_shape, net):  
+def get_train_generator(args, root_path, train_list, net_input_shape, net, save_visualization=False):  
     if args.multisize_training:  
         return generate_train_batches_patches_multisize(  
             root_path, train_list, net_input_shape, net,  
             batchSize=args.batch_size,  
             patch_sizes=args.patch_sizes,  
             size_distribution=args.size_distribution,  
-            aug_data=args.aug_data  
+            aug_data=args.aug_data,
+            save_visualization=save_visualization
         )  
     else:  
         return generate_train_batches_patches(  

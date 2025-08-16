@@ -254,11 +254,17 @@ def convert_mask_data(mask, resolution=RESOLUTION, from_background_color=COCO_BA
                      filename=None, output_path="data/result_img", patch_info=None):  
     '''  
     Procesa máscara y opcionalmente guarda visualización  
-    patch_info: tuple (patch_idx, total_patches) para nombrado único  
+    patch_info: tuple (patch_idx, total_patches) para nombrado único
     '''  
+
+    print(f"[DEBUG] save_visualization: {save_visualization}")  
+    print(f"[DEBUG] filename: {filename}")  
+    print(f"[DEBUG] output_path: {output_path}")  
+    
     mask = image_resize2square(mask, resolution)  
     mask = change_background_color(mask, from_background_color, to_background_color)   
-      
+    if mask.ndim == 2:  
+        mask = np.expand_dims(mask, axis=2)  # Convierte (H,W) a (H,W,1)
     if GRAYSCALE == True:        
         mask = mask[:,:,:1]  
     else:  
