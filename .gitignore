@@ -110,6 +110,7 @@ venv.bak/
 # SegCaps
 data/
 reference/
+analisis/
 
 
 ubuntukey.pem

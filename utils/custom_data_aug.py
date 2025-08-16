@@ -220,7 +220,8 @@ def change_background_color(img, original_color, new_color):
     '''
     Convert mask color of 4 channels png image to new color 
     '''
-    
+    if img.ndim < 3 or img.shape[2] != 4:  
+        return img
     r1, g1, b1, a1 = original_color[0], original_color[1], original_color[2], original_color[3]  # Original value
     # mask background color (0,0,0,0)
     r2, g2, b2, a2 = new_color[0], new_color[1], new_color[2], new_color[3] # Value that we want to replace it with
@@ -230,18 +231,14 @@ def change_background_color(img, original_color, new_color):
     img[:,:,:4][mask] = [r2, g2, b2, a2]
     return img
     
-def convert_mask_data(mask, resolution = RESOLUTION, from_background_color = COCO_BACKGROUND,
+""" def convert_mask_data0(mask, resolution = RESOLUTION, from_background_color = COCO_BACKGROUND,
                        to_background_color = MASK_BACKGROUND):
-    '''
-    1. Resize mask to square with size of resolution.
-    2. Change back ground color to black
-    3. Change pixel value to 1 for masking
-    4. Change pixel value to 0 for non-masking area
-    5. Reduce data type to uint8 to reduce the file size of mask.
-    '''
+    
     mask = image_resize2square(mask, resolution)
      
-    mask = change_background_color(mask, from_background_color, to_background_color) 
+    mask = change_background_color(mask, from_background_color, to_background_color)
+    if mask.ndim == 2:  
+        mask = np.expand_dims(mask, axis=2)  # Convierte (H,W) a (H,W,1)
     if GRAYSCALE == True:      
         # Only need one channel for black and white      
         mask = mask[:,:,:1]
@@ -251,8 +248,51 @@ def convert_mask_data(mask, resolution = RESOLUTION, from_background_color = COC
     mask[mask >= 1] = 1 # The mask. ie. class of Person
     mask[mask != 1] = 0 # Non Person / Background
     mask = mask.astype(np.uint8)
+    return mask """
+def convert_mask_data(mask, resolution=RESOLUTION, from_background_color=COCO_BACKGROUND,  
+                     to_background_color=MASK_BACKGROUND, save_visualization=False,   
+                     filename=None, output_path="data/result_img", patch_info=None):  
+    '''  
+    Procesa máscara y opcionalmente guarda visualización  
+    patch_info: tuple (patch_idx, total_patches) para nombrado único  
+    '''  
+    mask = image_resize2square(mask, resolution)  
+    mask = change_background_color(mask, from_background_color, to_background_color)   
+      
+    if GRAYSCALE == True:        
+        mask = mask[:,:,:1]  
+    else:  
+        mask = mask[:,:,:1]  
+  
+    mask[mask >= 1] = 1  
+    mask[mask != 1] = 0  
+    mask = mask.astype(np.uint8)  
+      
+    # Agregar visualización con colores  
+    if save_visualization and filename:  
+        import matplotlib.pyplot as plt  
+        import os  
+        from os.path import join  
+          
+        os.makedirs(output_path, exist_ok=True)  
+          
+        # Crear visualización colorizada  
+        colored_mask = np.zeros((*mask.shape[:2], 3), dtype=np.uint8)  
+        colored_mask[mask[:,:,0] == 0] = [255, 255, 0]  # Fondo amarillo  
+        colored_mask[mask[:,:,0] == 1] = [128, 0, 128]  # Segmentación morada  
+          
+        # Nombrar archivo con info del patch si está disponible  
+        if patch_info:  
+            patch_idx, total_patches = patch_info  
+            base_name = filename.split('.')[0]  
+            output_filename = f"{base_name}_patch_{patch_idx:03d}.png"  
+        else:  
+            output_filename = filename if filename.endswith('.png') else filename + '.png'  
+              
+        plt.imsave(join(output_path, output_filename), colored_mask)  
+      
     return mask
-    
+
 def convert_img_data(img, dims = 4, resolution = RESOLUTION):
     '''
     Convert image data by 
